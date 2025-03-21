@@ -1,0 +1,9 @@
+{
+  "/api/auth/[...nextauth]/route": "/api/auth/[...nextauth]",
+  "/_not-found/page": "/_not-found",
+  "/api/generate-badge/route": "/api/generate-badge",
+  "/favicon.ico/route": "/favicon.ico",
+  "/api/preview-layout/route": "/api/preview-layout",
+  "/layout-editor/page": "/layout-editor",
+  "/page": "/"
+}

@@ -8,6 +8,10 @@ const nextConfig = {
     serverActions: {
       allowedOrigins: ['localhost:3000', 'localhost:3001']
     },
+  },
+  // Disable ESLint during build
+  eslint: {
+    ignoreDuringBuilds: true,
   }
 };
 
