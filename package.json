@@ -1,0 +1,36 @@
+{
+  "name": "sweatshop",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "generate-template": "tsc && node scripts/generate-template.js",
+    "generate-template-simple": "node scripts/generate-template-simple.js"
+  },
+  "dependencies": {
+    "axios": "^1.8.4",
+    "canvas": "^3.1.0",
+    "next": "15.2.3",
+    "next-auth": "^4.24.11",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "sharp": "^0.33.5"
+  },
+  "devDependencies": {
+    "@babel/preset-env": "^7.26.9",
+    "@babel/preset-typescript": "^7.26.0",
+    "@babel/register": "^7.25.9",
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.2.3",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
