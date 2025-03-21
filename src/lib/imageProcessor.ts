@@ -1,4 +1,4 @@
-import { createCanvas, loadImage, Canvas } from 'canvas';
+import { createCanvas, loadImage, Canvas, registerFont } from 'canvas';
 import axios from 'axios';
 
 // 只在服务器端导入 Node.js 模块
@@ -8,6 +8,14 @@ if (typeof window === 'undefined') {
   // 这个代码块只会在服务器端执行
   fs = require('fs');
   path = require('path');
+  
+  // 尝试注册系统字体，但使用更健壮的方式
+  try {
+    // 不再尝试注册可能存在问题的字体，直接使用 Canvas 默认字体
+    console.log('将使用 Canvas 默认字体');
+  } catch (fontError) {
+    console.error('字体处理出错:', fontError);
+  }
 }
 
 export interface BadgeData {
@@ -31,23 +39,23 @@ const LAYOUT = {
   },
   // 名字参数
   name: {
-    x: 470,          // 名字X坐标
-    y: 578,          // 名字Y坐标
-    fontSize: 20,    // 名字字体大小
-    fontFamily: 'Arial',
+    x: 570,           // 名字X坐标
+    y: 578,           // 名字Y坐标
+    fontSize: 24,     // 名字字体大小
+    fontFamily: 'sans-serif', // 使用通用无衬线字体
     fontWeight: 'bold',
     color: 'black',
-    align: 'center'  // 对齐方式
+    align: 'center'   // 对齐方式
   },
   // 职位参数
   position: {
-    x: 470,          // 职位X坐标
-    y: 658,          // 职位Y坐标
-    fontSize: 20,    // 职位字体大小
-    fontFamily: 'Arial',
+    x: 570,           // 职位X坐标
+    y: 658,           // 职位Y坐标
+    fontSize: 24,     // 职位字体大小
+    fontFamily: 'sans-serif', // 使用通用无衬线字体
     fontWeight: 'normal',
     color: 'black',
-    align: 'center'  // 对齐方式
+    align: 'center'   // 对齐方式
   }
 };
 
@@ -198,17 +206,40 @@ export async function generateBadge(badgeData: BadgeData, customLayout?: typeof 
   }
 
   // 添加用户名
-  ctx.fillStyle = layout.name.color;
-  ctx.font = `${layout.name.fontWeight} ${layout.name.fontSize}px ${layout.name.fontFamily}`;
-  ctx.textAlign = layout.name.align as CanvasTextAlign;
-  ctx.fillText(badgeData.name || 'Unknown User', layout.name.x, layout.name.y);
+  try {
+    // 尝试绘制用户名，如果过长则截断
+    const maxNameLength = 12; // 最大显示长度
+    let displayName = badgeData.name || 'Unknown User';
+    if (displayName.length > maxNameLength) {
+      displayName = displayName.substring(0, maxNameLength) + '...';
+    }
+    
+    ctx.fillStyle = layout.name.color;
+    ctx.font = `${layout.name.fontWeight} ${layout.name.fontSize}px ${layout.name.fontFamily}`;
+    ctx.textAlign = layout.name.align as CanvasTextAlign;
+    console.log('Rendering name:', displayName);
+    ctx.fillText(displayName, layout.name.x, layout.name.y);
 
-  // 如果提供了职位则添加
-  if (badgeData.position) {
-    ctx.fillStyle = layout.position.color;
-    ctx.font = `${layout.position.fontWeight} ${layout.position.fontSize}px ${layout.position.fontFamily}`;
-    ctx.textAlign = layout.position.align as CanvasTextAlign;
-    ctx.fillText(badgeData.position, layout.position.x, layout.position.y);
+    // 如果提供了职位则添加，同样处理长度
+    if (badgeData.position) {
+      const maxPositionLength = 15; // 职位最大显示长度
+      let displayPosition = badgeData.position;
+      if (displayPosition.length > maxPositionLength) {
+        displayPosition = displayPosition.substring(0, maxPositionLength) + '...';
+      }
+      
+      ctx.fillStyle = layout.position.color;
+      ctx.font = `${layout.position.fontWeight} ${layout.position.fontSize}px ${layout.position.fontFamily}`;
+      ctx.textAlign = layout.position.align as CanvasTextAlign;
+      console.log('Rendering position:', displayPosition);
+      ctx.fillText(displayPosition, layout.position.x, layout.position.y);
+    }
+  } catch (textError) {
+    console.error('Error rendering text:', textError);
+    // 备用方案：绘制矩形区域代替文本
+    ctx.fillStyle = 'red';
+    ctx.fillRect(layout.name.x - 150, layout.name.y - 20, 300, 40);
+    ctx.fillRect(layout.position.x - 150, layout.position.y - 20, 300, 40);
   }
 
   console.log('Badge generation completed');

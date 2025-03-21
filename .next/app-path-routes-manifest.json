@@ -1,9 +1,9 @@
 {
-  "/_not-found/page": "/_not-found",
-  "/api/auth/[...nextauth]/route": "/api/auth/[...nextauth]",
-  "/api/preview-layout/route": "/api/preview-layout",
-  "/favicon.ico/route": "/favicon.ico",
   "/api/generate-badge/route": "/api/generate-badge",
+  "/api/auth/[...nextauth]/route": "/api/auth/[...nextauth]",
+  "/_not-found/page": "/_not-found",
+  "/favicon.ico/route": "/favicon.ico",
+  "/api/preview-layout/route": "/api/preview-layout",
   "/page": "/",
   "/layout-editor/page": "/layout-editor"
 }
