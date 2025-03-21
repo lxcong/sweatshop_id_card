@@ -8,9 +8,17 @@ import Link from 'next/link';
 export default function Home() {
   const { data: session, status } = useSession();
   const [position, setPosition] = useState('TP 志愿者');
+  const [name, setName] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [badgeUrl, setBadgeUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // 当session变化时更新名字
+  useEffect(() => {
+    if (session?.user?.name) {
+      setName(session.user.name);
+    }
+  }, [session]);
 
   // 登录处理
   const handleSignIn = async () => {
@@ -29,12 +37,17 @@ export default function Home() {
       return;
     }
 
+    if (!name.trim()) {
+      setError('请输入名字');
+      return;
+    }
+
     setIsGenerating(true);
     setError(null);
     
     try {
       console.log('正在生成徽章，用户信息:', {
-        name: session.user?.name,
+        name: name,
         image: session.user?.image,
         position
       });
@@ -44,7 +57,7 @@ export default function Home() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ position }),
+        body: JSON.stringify({ position, name }),
       });
 
       if (!response.ok) {
@@ -114,6 +127,18 @@ export default function Home() {
               </div>
 
               <div className="w-full">
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                  Name (名字)
+                </label>
+                <input
+                  type="text"
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="输入您的名字"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+                />
+                
                 <label htmlFor="position" className="block text-sm font-medium text-gray-700 mb-1">
                   Position (职位)
                 </label>
@@ -150,10 +175,15 @@ export default function Home() {
                   <a
                     href={badgeUrl}
                     download="sweatshop-badge.png"
-                    className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                    className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline mb-4"
                   >
                     下载徽章
                   </a>
+                  <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 rounded">
+                    <p className="font-bold">专属徽章已生成成功!</p>
+                    <p>点击上方的"下载徽章"按钮保存您的个人徽章。</p>
+                    <p>如果文字显示有问题，请联系管理员。</p>
+                  </div>
                 </div>
               )}
             </div>

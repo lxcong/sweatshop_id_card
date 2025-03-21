@@ -1,11 +1,13 @@
 import { createCanvas, loadImage, Canvas, registerFont } from 'canvas';
 import axios from 'axios';
 
-// 只在服务器端导入 Node.js 模块
+// 只在服务器端导入模块
+let sharp: any = null;
 let fs: any = null;
 let path: any = null;
 if (typeof window === 'undefined') {
-  // 这个代码块只会在服务器端执行
+  // 这些模块只在服务器端加载
+  sharp = require('sharp');
   fs = require('fs');
   path = require('path');
   
@@ -16,6 +18,17 @@ if (typeof window === 'undefined') {
   } catch (fontError) {
     console.error('字体处理出错:', fontError);
   }
+}
+
+// 工具函数：转义SVG文本中的特殊字符
+function escapeSvgText(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }
 
 export interface BadgeData {
@@ -39,9 +52,9 @@ const LAYOUT = {
   },
   // 名字参数
   name: {
-    x: 570,           // 名字X坐标
-    y: 578,           // 名字Y坐标
-    fontSize: 24,     // 名字字体大小
+    x: 460,           // 名字X坐标
+    y: 580,           // 名字Y坐标
+    fontSize: 20,     // 名字字体大小
     fontFamily: 'sans-serif', // 使用通用无衬线字体
     fontWeight: 'bold',
     color: 'black',
@@ -49,9 +62,9 @@ const LAYOUT = {
   },
   // 职位参数
   position: {
-    x: 570,           // 职位X坐标
-    y: 658,           // 职位Y坐标
-    fontSize: 24,     // 职位字体大小
+    x: 460,           // 职位X坐标
+    y: 650,           // 职位Y坐标
+    fontSize: 20,     // 职位字体大小
     fontFamily: 'sans-serif', // 使用通用无衬线字体
     fontWeight: 'normal',
     color: 'black',
@@ -205,46 +218,97 @@ export async function generateBadge(badgeData: BadgeData, customLayout?: typeof 
     ctx.fillRect(0, 0, BADGE_WIDTH, BADGE_HEIGHT);
   }
 
-  // 添加用户名
-  try {
-    // 尝试绘制用户名，如果过长则截断
-    const maxNameLength = 12; // 最大显示长度
-    let displayName = badgeData.name || 'Unknown User';
-    if (displayName.length > maxNameLength) {
-      displayName = displayName.substring(0, maxNameLength) + '...';
-    }
-    
-    ctx.fillStyle = layout.name.color;
-    ctx.font = `${layout.name.fontWeight} ${layout.name.fontSize}px ${layout.name.fontFamily}`;
-    ctx.textAlign = layout.name.align as CanvasTextAlign;
-    console.log('Rendering name:', displayName);
-    ctx.fillText(displayName, layout.name.x, layout.name.y);
-
-    // 如果提供了职位则添加，同样处理长度
-    if (badgeData.position) {
-      const maxPositionLength = 15; // 职位最大显示长度
-      let displayPosition = badgeData.position;
-      if (displayPosition.length > maxPositionLength) {
-        displayPosition = displayPosition.substring(0, maxPositionLength) + '...';
-      }
-      
-      ctx.fillStyle = layout.position.color;
-      ctx.font = `${layout.position.fontWeight} ${layout.position.fontSize}px ${layout.position.fontFamily}`;
-      ctx.textAlign = layout.position.align as CanvasTextAlign;
-      console.log('Rendering position:', displayPosition);
-      ctx.fillText(displayPosition, layout.position.x, layout.position.y);
-    }
-  } catch (textError) {
-    console.error('Error rendering text:', textError);
-    // 备用方案：绘制矩形区域代替文本
-    ctx.fillStyle = 'red';
-    ctx.fillRect(layout.name.x - 150, layout.name.y - 20, 300, 40);
-    ctx.fillRect(layout.position.x - 150, layout.position.y - 20, 300, 40);
-  }
-
-  console.log('Badge generation completed');
   // 将画布转换为缓冲区
-  return canvas.toBuffer('image/png');
+  const canvasBuffer = canvas.toBuffer('image/png');
+  
+  // 使用 Sharp 处理图像，添加文字（仅在服务器端）
+  if (typeof window === 'undefined' && sharp) {
+    try {
+      // 创建 SVG 文本图层，添加明确的中文字体回退选项
+      const nameText = escapeSvgText(badgeData.name || 'Unknown User');
+      const positionText = badgeData.position ? escapeSvgText(badgeData.position) : '';
+      
+      console.log('Preparing text rendering:');
+      console.log('- Name (escaped):', nameText);
+      console.log('- Position (escaped):', positionText);
+      
+      const svgText = `
+        <svg width="${BADGE_WIDTH}" height="${BADGE_HEIGHT}">
+          <style>
+            .name { 
+              font: bold 20px "PingFang SC", "Microsoft YaHei", "SimHei", "Noto Sans SC", sans-serif; 
+              white-space: pre;
+            }
+            .position { 
+              font: 20px "PingFang SC", "Microsoft YaHei", "SimHei", "Noto Sans SC", sans-serif; 
+              white-space: pre;
+            }
+          </style>
+          <text 
+            x="${layout.name.x}" 
+            y="${layout.name.y}" 
+            text-anchor="middle" 
+            dominant-baseline="middle"
+            class="name" 
+            fill="black"
+          >${nameText}</text>
+          ${positionText ? `
+            <text 
+              x="${layout.position.x}" 
+              y="${layout.position.y}" 
+              text-anchor="middle" 
+              dominant-baseline="middle"
+              class="position" 
+              fill="black"
+            >${positionText}</text>
+          ` : ''}
+        </svg>`;
+      
+      console.log('Created SVG text layer with enhanced Unicode support');
+      
+      // 使用 Sharp 将文本合成到图像上
+      const finalImage = await sharp(canvasBuffer)
+        .composite([{
+          input: Buffer.from(svgText, 'utf-8'),
+          gravity: 'center'
+        }])
+        .png()
+        .toBuffer();
+        
+      console.log('Badge generation completed with Sharp text rendering');
+      return finalImage;
+    } catch (textError) {
+      console.error('Error rendering text with Sharp:', textError);
+      try {
+        // 尝试渲染更简单的SVG以便定位问题
+        console.log('Attempting simpler SVG text rendering as fallback');
+        const simpleSvg = `
+          <svg width="${BADGE_WIDTH}" height="${BADGE_HEIGHT}">
+            <text x="${layout.name.x}" y="${layout.name.y}" font-family="sans-serif" font-size="20" text-anchor="middle" fill="black">Badge Text</text>
+          </svg>`;
+        
+        const fallbackImage = await sharp(canvasBuffer)
+          .composite([{
+            input: Buffer.from(simpleSvg, 'utf-8'),
+            gravity: 'center'
+          }])
+          .png()
+          .toBuffer();
+        
+        console.log('Fallback simple text rendering completed');
+        return fallbackImage;
+      } catch (fallbackError) {
+        console.error('Even fallback text rendering failed:', fallbackError);
+        // 返回无文本的图像
+        console.log('Badge generation completed without text');
+        return canvasBuffer;
+      }
+    }
+  } else {
+    // 客户端或没有 Sharp 的情况，直接返回 Canvas 生成的缓冲区
+    console.log('Badge generation completed without Sharp text rendering (client-side)');
+    return canvasBuffer;
+  }
 }
 
 // 辅助函数：获取Twitter个人资料图片的完整分辨率版本

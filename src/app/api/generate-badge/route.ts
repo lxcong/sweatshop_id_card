@@ -15,10 +15,11 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await req.json();
-    const { position, layout } = data;
+    const { position, layout, name: customName } = data;
 
     // Get user data from session
-    const { name, image } = session.user;
+    const { image } = session.user;
+    const name = customName || session.user.name; // 使用自定义名字或默认使用推特名
     
     if (!name || !image) {
       return NextResponse.json(

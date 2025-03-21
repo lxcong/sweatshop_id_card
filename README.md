@@ -58,18 +58,12 @@ A web application that allows users to log in with Twitter, then automatically r
    openssl rand -base64 32
    ```
 
-5. Generate the badge template:
-   ```bash
-   npm run generate-template-simple
-   ```
-   > 注意：如果执行 `npm run generate-template` 出错，请使用上面的简单版命令代替
-
-6. Start the development server:
+5. Start the development server:
    ```bash
    npm run dev
    ```
 
-7. Open [http://localhost:3000](http://localhost:3000) in your browser.
+6. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Twitter API Setup
 
