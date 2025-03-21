@@ -89,13 +89,36 @@ export async function generateBadge(badgeData: BadgeData, customLayout?: typeof 
     const templateExists = typeof window === 'undefined' && fs ? fs.existsSync(templatePath) : true;
     console.log('Template exists check:', templateExists);
     
+    // GitHub 上的备用模板链接
+    const githubTemplateUrl = 'https://raw.githubusercontent.com/lxcong/sweatshop_id_card/master/public/images/badge-template.png';
+    
     // 加载图像
     let templateImage;
     if (typeof window === 'undefined') {
       // 服务器端
-      templateImage = await loadImage(
-        templateExists ? templatePath : 'https://via.placeholder.com/600x800/FECF33/000000?text=SWEATSHOP'
-      );
+      try {
+        templateImage = await loadImage(templateExists ? templatePath : githubTemplateUrl);
+        console.log('Template image loaded from:', templateExists ? 'local file' : 'GitHub');
+      } catch (err) {
+        console.error('Failed to load template from primary sources, creating basic template');
+        // 创建一个基本的模板作为最后的备用选项
+        const tempTemplateCanvas = createCanvas(BADGE_WIDTH, BADGE_HEIGHT);
+        const tempTemplateCtx = tempTemplateCanvas.getContext('2d');
+        
+        // 填充黄色背景
+        tempTemplateCtx.fillStyle = '#FECF33';
+        tempTemplateCtx.fillRect(0, 0, BADGE_WIDTH, BADGE_HEIGHT);
+        
+        // 添加一些基本文本
+        tempTemplateCtx.fillStyle = '#000000';
+        tempTemplateCtx.font = 'bold 36px Arial';
+        tempTemplateCtx.textAlign = 'center';
+        tempTemplateCtx.fillText('SWEATSHOP', BADGE_WIDTH/2, 150);
+        
+        // 转换为图像
+        const tempBuffer = tempTemplateCanvas.toBuffer('image/png');
+        templateImage = await loadImage(tempBuffer);
+      }
     } else {
       // 客户端
       templateImage = await loadImage(templatePath);
