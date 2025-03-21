@@ -1,0 +1,15 @@
+
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-style: normal;
+  font-weight: 400;
+  src: url('/fonts/NotoSansSC-Regular.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-style: normal;
+  font-weight: 700;
+  src: url('/fonts/NotoSansSC-Bold.ttf') format('truetype');
+}
+  

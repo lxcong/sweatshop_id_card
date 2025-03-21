@@ -2,5 +2,10 @@
   "buildCommand": "node scripts/download-font.js && next build",
   "outputDirectory": ".next",
   "installCommand": "npm install",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "env": {
+    "NODE_OPTIONS": "--max-old-space-size=4096",
+    "SHARP_IGNORE_GLOBAL": "1",
+    "VERCEL_FORCE_NO_BUILD_CACHE": "1"
+  }
 } 

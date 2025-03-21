@@ -11,10 +11,27 @@ if (typeof window === 'undefined') {
   fs = require('fs');
   path = require('path');
   
-  // 尝试注册系统字体，但使用更健壮的方式
+  // 尝试注册中文字体
   try {
-    // 不再尝试注册可能存在问题的字体，直接使用 Canvas 默认字体
-    console.log('将使用 Canvas 默认字体');
+    const fontPaths = {
+      regular: path.join(process.cwd(), 'public/fonts/NotoSansSC-Regular.ttf'),
+      bold: path.join(process.cwd(), 'public/fonts/NotoSansSC-Bold.ttf')
+    };
+    
+    // 检查字体文件是否存在
+    if (fs.existsSync(fontPaths.regular)) {
+      registerFont(fontPaths.regular, { family: 'Noto Sans SC', weight: 'normal' });
+      console.log('已注册 Noto Sans SC Regular 字体');
+    } else {
+      console.warn('找不到 Noto Sans SC Regular 字体文件');
+    }
+    
+    if (fs.existsSync(fontPaths.bold)) {
+      registerFont(fontPaths.bold, { family: 'Noto Sans SC', weight: 'bold' });
+      console.log('已注册 Noto Sans SC Bold 字体');
+    } else {
+      console.warn('找不到 Noto Sans SC Bold 字体文件');
+    }
   } catch (fontError) {
     console.error('字体处理出错:', fontError);
   }
@@ -232,76 +249,120 @@ export async function generateBadge(badgeData: BadgeData, customLayout?: typeof 
       console.log('- Name (escaped):', nameText);
       console.log('- Position (escaped):', positionText);
       
-      const svgText = `
-        <svg width="${BADGE_WIDTH}" height="${BADGE_HEIGHT}">
-          <style>
-            .name { 
-              font: bold 20px "PingFang SC", "Microsoft YaHei", "SimHei", "Noto Sans SC", sans-serif; 
-              white-space: pre;
-            }
-            .position { 
-              font: 20px "PingFang SC", "Microsoft YaHei", "SimHei", "Noto Sans SC", sans-serif; 
-              white-space: pre;
-            }
-          </style>
-          <text 
-            x="${layout.name.x}" 
-            y="${layout.name.y}" 
-            text-anchor="middle" 
-            dominant-baseline="middle"
-            class="name" 
-            fill="black"
-          >${nameText}</text>
-          ${positionText ? `
-            <text 
-              x="${layout.position.x}" 
-              y="${layout.position.y}" 
-              text-anchor="middle" 
-              dominant-baseline="middle"
-              class="position" 
-              fill="black"
-            >${positionText}</text>
-          ` : ''}
-        </svg>`;
+      // 中文文本渲染可能在某些环境下出现问题，使用直接图像叠加方法
+      console.log('Attempting direct image text overlay with fallback mechanisms');
       
-      console.log('Created SVG text layer with enhanced Unicode support');
+      // 在Canvas上绘制文本
+      const textCanvas = createCanvas(BADGE_WIDTH, BADGE_HEIGHT);
+      const textCtx = textCanvas.getContext('2d');
       
-      // 使用 Sharp 将文本合成到图像上
+      // 确保透明背景
+      textCtx.clearRect(0, 0, BADGE_WIDTH, BADGE_HEIGHT);
+      
+      // 尝试几种不同的字体组合来增加成功率
+      try {
+        // 方法1: 使用Noto Sans SC字体
+        textCtx.font = `bold ${layout.name.fontSize}px 'Noto Sans SC', sans-serif`;
+        textCtx.textAlign = 'center';
+        textCtx.fillStyle = 'black';
+        textCtx.fillText(badgeData.name || 'Unknown', layout.name.x, layout.name.y);
+        
+        // 绘制职位
+        if (badgeData.position) {
+          textCtx.font = `${layout.position.fontSize}px 'Noto Sans SC', sans-serif`;
+          textCtx.fillText(badgeData.position, layout.position.x, layout.position.y);
+        }
+      } catch (e) {
+        // 方法2: 回退到系统字体
+        console.log('Fallback to system fonts');
+        textCtx.font = `bold ${layout.name.fontSize}px Arial, sans-serif`;
+        textCtx.textAlign = 'center';
+        textCtx.fillStyle = 'black';
+        textCtx.fillText(badgeData.name || 'Unknown', layout.name.x, layout.name.y);
+        
+        if (badgeData.position) {
+          textCtx.font = `${layout.position.fontSize}px Arial, sans-serif`;
+          textCtx.fillText(badgeData.position, layout.position.x, layout.position.y);
+        }
+      }
+      
+      // 将Canvas转换为Buffer
+      const textBuffer = textCanvas.toBuffer('image/png');
+      
+      // 使用Sharp合成图像
       const finalImage = await sharp(canvasBuffer)
         .composite([{
-          input: Buffer.from(svgText, 'utf-8'),
-          gravity: 'center'
+          input: textBuffer,
+          blend: 'over'
         }])
         .png()
         .toBuffer();
-        
-      console.log('Badge generation completed with Sharp text rendering');
+      
+      console.log('Badge generation completed with optimized Canvas text rendering');
       return finalImage;
     } catch (textError) {
-      console.error('Error rendering text with Sharp:', textError);
+      console.error('Error in primary text rendering method:', textError);
+      
+      // 最简单的回退方案: 使用基本Canvas
       try {
-        // 尝试渲染更简单的SVG以便定位问题
-        console.log('Attempting simpler SVG text rendering as fallback');
-        const simpleSvg = `
-          <svg width="${BADGE_WIDTH}" height="${BADGE_HEIGHT}">
-            <text x="${layout.name.x}" y="${layout.name.y}" font-family="sans-serif" font-size="20" text-anchor="middle" fill="black">Badge Text</text>
-          </svg>`;
+        console.log('Attempting basic canvas text rendering');
+        const textCanvas = createCanvas(BADGE_WIDTH, BADGE_HEIGHT);
+        const textCtx = textCanvas.getContext('2d');
         
-        const fallbackImage = await sharp(canvasBuffer)
-          .composite([{
-            input: Buffer.from(simpleSvg, 'utf-8'),
-            gravity: 'center'
-          }])
-          .png()
-          .toBuffer();
+        // 绘制原始图像
+        const baseImage = await loadImage(canvasBuffer);
+        textCtx.drawImage(baseImage, 0, 0);
         
-        console.log('Fallback simple text rendering completed');
-        return fallbackImage;
+        // 使用最基本的字体设置
+        textCtx.font = `bold ${layout.name.fontSize}px sans-serif`;
+        textCtx.textAlign = 'center';
+        textCtx.fillStyle = 'black';
+        
+        // 逐字符绘制名称以避免编码问题
+        const name = badgeData.name || 'Unknown';
+        const chars = name.split('');
+        let totalWidth = 0;
+        
+        // 计算总宽度
+        for (const char of chars) {
+          totalWidth += textCtx.measureText(char).width;
+        }
+        
+        // 从左侧开始的位置
+        let currentX = layout.name.x - totalWidth / 2;
+        
+        // 逐字符绘制
+        for (const char of chars) {
+          const charWidth = textCtx.measureText(char).width;
+          textCtx.fillText(char, currentX + charWidth / 2, layout.name.y);
+          currentX += charWidth;
+        }
+        
+        // 如果有职位，也逐字符绘制
+        if (badgeData.position) {
+          textCtx.font = `${layout.position.fontSize}px sans-serif`;
+          
+          const posChars = badgeData.position.split('');
+          let posTotalWidth = 0;
+          
+          for (const char of posChars) {
+            posTotalWidth += textCtx.measureText(char).width;
+          }
+          
+          let posCurrentX = layout.position.x - posTotalWidth / 2;
+          
+          for (const char of posChars) {
+            const charWidth = textCtx.measureText(char).width;
+            textCtx.fillText(char, posCurrentX + charWidth / 2, layout.position.y);
+            posCurrentX += charWidth;
+          }
+        }
+        
+        console.log('Character-by-character text rendering completed');
+        return textCanvas.toBuffer('image/png');
       } catch (fallbackError) {
-        console.error('Even fallback text rendering failed:', fallbackError);
-        // 返回无文本的图像
-        console.log('Badge generation completed without text');
-        return canvasBuffer;
+        console.error('All text rendering methods failed:', fallbackError);
+        return canvasBuffer; // 返回不含文本的图像作为最后手段
       }
     }
   } else {
